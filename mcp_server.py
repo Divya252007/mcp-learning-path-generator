@@ -1,5 +1,4 @@
-from mcp.server import MCPServer
-
+from mcp.server.mcpserver import MCPServer
 mcp = MCPServer(
     "Learning Path Generator",
     instructions="Provides tools for creating personalized learning paths and finding learning resources."
