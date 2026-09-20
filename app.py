@@ -1,4 +1,5 @@
 import asyncio
+import json
 import streamlit as st
 
 from mcp import Client
@@ -8,11 +9,12 @@ from mcp_server import mcp
 st.set_page_config(
     page_title="MCP Learning Path Generator",
     page_icon="🧠",
-    layout="centered",
+    layout="centered"
 )
 
 
 async def call_mcp(tool_name, arguments):
+
     async with Client(mcp) as client:
 
         result = await client.call_tool(
@@ -20,19 +22,55 @@ async def call_mcp(tool_name, arguments):
             arguments
         )
 
-        data = result.structured_content
+        # MCP tool error
+        if result.is_error:
 
-        if isinstance(data, dict) and set(data.keys()) == {"result"}:
-            return data["result"]
+            error_text = "MCP tool failed."
 
-        return data
+            if result.content:
+                first = result.content[0]
+
+                if hasattr(first, "text"):
+                    error_text = first.text
+
+            raise RuntimeError(error_text)
+
+        # Preferred structured result
+        if result.structured_content is not None:
+
+            data = result.structured_content
+
+            # Primitive results are wrapped by MCP as {"result": ...}
+            if (
+                isinstance(data, dict)
+                and set(data.keys()) == {"result"}
+            ):
+                return data["result"]
+
+            return data
+
+        # Fallback: read JSON from text content
+        if result.content:
+
+            first = result.content[0]
+
+            if hasattr(first, "text"):
+
+                try:
+                    return json.loads(first.text)
+                except json.JSONDecodeError:
+                    return first.text
+
+        raise RuntimeError(
+            "MCP returned an empty result."
+        )
 
 
 st.title("🧠 MCP-Powered AI Learning Path Generator")
 
-st.caption(
-    "Generate a personalized learning roadmap using "
-    "Model Context Protocol (MCP)."
+st.write(
+    "Generate a personalized learning roadmap "
+    "using Model Context Protocol (MCP)."
 )
 
 
@@ -68,7 +106,9 @@ if submitted:
 
     try:
 
-        with st.spinner("🔌 Calling MCP tools..."):
+        with st.spinner(
+            "🔌 Calling MCP tools..."
+        ):
 
             plan = asyncio.run(
                 call_mcp(
@@ -106,10 +146,20 @@ if submitted:
         )
 
 
+        # -------------------------
+        # LEARNING GOAL
+        # -------------------------
+
         st.subheader("🎯 Learning Goal")
 
-        st.write(plan["goal"])
+        st.write(
+            plan["goal"]
+        )
 
+
+        # -------------------------
+        # ROADMAP
+        # -------------------------
 
         st.subheader("📅 Day-by-Day Roadmap")
 
@@ -119,19 +169,36 @@ if submitted:
                 f"Day {item['day']} — {item['topic']}"
             ):
 
-                st.write(item["task"])
+                st.write(
+                    item["task"]
+                )
 
+
+        # -------------------------
+        # RESOURCES
+        # -------------------------
 
         st.subheader("📚 Learning Resources")
 
         for resource in resources:
 
             st.markdown(
-                f"- [{resource['title']}]"
-                f"({resource['url']}) — "
-                f"{resource['purpose']}"
+                f"### 📖 {resource['title']}"
             )
 
+            st.write(
+                resource["purpose"]
+            )
+
+            st.link_button(
+                "Open Resource",
+                resource["url"]
+            )
+
+
+        # -------------------------
+        # PROJECT
+        # -------------------------
 
         st.subheader("💡 Suggested Mini Project")
 
@@ -144,24 +211,31 @@ if submitted:
         )
 
 
+        # -------------------------
+        # MCP TOOLS
+        # -------------------------
+
         st.subheader("🔌 MCP Tools Used")
 
         st.code(
             """
-generate_learning_path()
-get_learning_resources()
-suggest_project()
-"""
+MCP Server
+│
+├── generate_learning_path()
+├── get_learning_resources()
+└── suggest_project()
+            """
         )
 
 
     except Exception as e:
 
         st.error(
-            f"Something went wrong: {e}"
+            f"❌ MCP Error: {e}"
         )
 
         st.info(
-            "Please check that app.py, mcp_server.py "
-            "and requirements.txt are updated."
+            "The application is running, but an MCP "
+            "tool returned an error. The detailed message "
+            "above can be used to diagnose the tool."
         )
