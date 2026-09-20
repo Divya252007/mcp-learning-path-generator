@@ -1,123 +1,68 @@
-        from pydantic import BaseModel
 from mcp.server import MCPServer
 
-
 mcp = MCPServer(
-    "LearningPathServer",
-    instructions="MCP tools for generating personalized learning paths.",
+    "Learning Path Generator",
+    instructions="Provides tools for creating personalized learning paths and finding learning resources."
 )
 
-
-class RoadmapItem(BaseModel):
-    day: int
-    topic: str
-    task: str
-
-
-class LearningPath(BaseModel):
-    goal: str
-    roadmap: list[RoadmapItem]
-
-
-class LearningResource(BaseModel):
-    title: str
-    url: str
-    purpose: str
-
-
-class ProjectSuggestion(BaseModel):
-    title: str
-    description: str
-
-
 @mcp.tool()
-def generate_learning_path(
-    subject: str,
-    days: int,
-    level: str
-) -> LearningPath:
-    """Generate a personalized day-by-day learning roadmap."""
-
-    days = max(1, min(days, 60))
-
-    topics = [
-        "Foundations and Key Concepts",
-        "Core Concepts",
-        "Syntax and Terminology",
-        "Guided Examples",
-        "Hands-on Practice",
-        "Problem Solving",
-        "Intermediate Concepts",
-        "Practice Exercises",
-        "Real-world Applications",
-        "Mini Project",
-    ]
+def generate_learning_path(topic: str, days: int, level: str) -> dict:
+    """Generate a structured learning roadmap for a topic."""
+    days = max(1, min(int(days), 60))
 
     roadmap = []
-
     for day in range(1, days + 1):
+        if day <= max(1, days // 4):
+            phase = "Foundations"
+            concepts = ["Core terminology", "Basic syntax/concepts", "Small examples"]
+        elif day <= max(2, days // 2):
+            phase = "Core Skills"
+            concepts = ["Important concepts", "Hands-on exercises", "Debugging/problem solving"]
+        elif day <= max(3, (days * 3) // 4):
+            phase = "Applied Practice"
+            concepts = ["Intermediate techniques", "Real-world examples", "Mini project work"]
+        else:
+            phase = "Project & Review"
+            concepts = ["Revision", "Integration", "Final project"]
 
-        topic = topics[(day - 1) % len(topics)]
+        roadmap.append({
+            "day": day,
+            "topic": f"{phase}: {topic}",
+            "concepts": concepts,
+            "practice": f"Spend 30–60 minutes practicing {topic} at {level} level.",
+            "task": f"Complete one small exercise related to {topic}."
+        })
 
-        roadmap.append(
-            RoadmapItem(
-                day=day,
-                topic=f"{subject}: {topic}",
-                task=(
-                    f"Study {topic.lower()} and complete "
-                    f"one practical exercise at "
-                    f"{level.lower()} level."
-                )
-            )
-        )
-
-    return LearningPath(
-        goal=(
-            f"Build a {level.lower()}-level foundation "
-            f"in {subject}."
-        ),
-        roadmap=roadmap
-    )
-
-
-@mcp.tool()
-def get_learning_resources(
-    subject: str
-) -> list[LearningResource]:
-    """Provide learning resources."""
-
-    return [
-        LearningResource(
-            title="Python Official Tutorial",
-            url="https://docs.python.org/3/tutorial/",
-            purpose="Official Python learning material."
-        ),
-        LearningResource(
-            title="Kaggle Learn",
-            url="https://www.kaggle.com/learn",
-            purpose="Hands-on courses and exercises."
-        ),
-        LearningResource(
-            title="freeCodeCamp",
-            url="https://www.freecodecamp.org/learn/",
-            purpose="Interactive programming practice."
-        ),
-    ]
+    return {
+        "goal": f"Build a {days}-day {level.lower()} learning path for {topic}.",
+        "roadmap": roadmap,
+        "project_ideas": [
+            f"Build a small {topic} practice project",
+            f"Create a portfolio project demonstrating {topic}",
+            f"Document what you learned and the results"
+        ]
+    }
 
 
 @mcp.tool()
-def suggest_project(
-    subject: str,
-    level: str
-) -> ProjectSuggestion:
-    """Suggest a practical project."""
+def find_learning_resources(topic: str, level: str) -> dict:
+    """Return learning-resource links relevant to a topic."""
+    query = topic.replace(" ", "+")
+    return {
+        "resources": [
+            {
+                "title": f"YouTube search: {topic}",
+                "url": f"https://www.youtube.com/results?search_query={query}+{level.lower()}",
+                "type": "Video search"
+            },
+            {
+                "title": f"Google search: {topic} documentation",
+                "url": f"https://www.google.com/search?q={query}+documentation",
+                "type": "Documentation search"
+            }
+        ]
+    }
 
-    return ProjectSuggestion(
-        title=f"{subject} Student Mini Project",
-        description=(
-            f"Build a small practical application using "
-            f"the main concepts of {subject}. "
-            f"The project should be suitable for a "
-            f"{level.lower()} learner."
-        )
-    )
+
+if __name__ == "__main__":
+    mcp.run()
