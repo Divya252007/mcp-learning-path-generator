@@ -1,86 +1,167 @@
 import asyncio
-import json
 import streamlit as st
 
 from mcp import Client
 from mcp_server import mcp
 
+
 st.set_page_config(
     page_title="MCP Learning Path Generator",
     page_icon="🧠",
-    layout="wide",
+    layout="centered",
 )
 
+
+async def call_mcp(tool_name, arguments):
+    async with Client(mcp) as client:
+
+        result = await client.call_tool(
+            tool_name,
+            arguments
+        )
+
+        data = result.structured_content
+
+        if isinstance(data, dict) and set(data.keys()) == {"result"}:
+            return data["result"]
+
+        return data
+
+
 st.title("🧠 MCP-Powered AI Learning Path Generator")
-st.caption("A student-friendly demonstration of AI + Model Context Protocol (MCP) tools")
 
-with st.sidebar:
-    st.header("Learning Plan")
-    topic = st.text_input("What do you want to learn?", "Python and Machine Learning")
-    days = st.slider("Learning duration (days)", 7, 60, 30)
-    level = st.selectbox("Current level", ["Beginner", "Intermediate", "Advanced"])
-    generate = st.button("🚀 Generate Learning Path", use_container_width=True)
+st.caption(
+    "Generate a personalized learning roadmap using "
+    "Model Context Protocol (MCP)."
+)
 
-def call_mcp_tool(tool_name, arguments):
-    async def runner():
-        async with Client(mcp) as client:
-            result = await client.call_tool(tool_name, arguments)
-            return result.structured_content
-    return asyncio.run(runner())
 
-if generate:
-    with st.spinner("Calling MCP tools and building your roadmap..."):
-        plan = call_mcp_tool(
-            "generate_learning_path",
-            {"topic": topic, "days": days, "level": level},
-        )
-        resources = call_mcp_tool(
-            "find_learning_resources",
-            {"topic": topic, "level": level},
-        )
+with st.form("learning_form"):
 
-    st.success("Learning path generated through MCP tools.")
-
-    st.subheader("🎯 Learning Goal")
-    st.write(plan["goal"])
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Duration", f"{days} days")
-    col2.metric("Level", level)
-    col3.metric("MCP Tools Used", "2")
-
-    st.subheader("📅 Day-by-Day Roadmap")
-    for item in plan["roadmap"]:
-        with st.expander(f"Day {item['day']} — {item['topic']}"):
-            st.write("**Concepts:**", ", ".join(item["concepts"]))
-            st.write("**Practice:**", item["practice"])
-            st.write("**Mini task:**", item["task"])
-
-    st.subheader("🎥 Learning Resources")
-    for resource in resources["resources"]:
-        st.markdown(f"- [{resource['title']}]({resource['url']}) — {resource['type']}")
-
-    st.subheader("💡 Project Ideas")
-    for idea in plan["project_ideas"]:
-        st.write("•", idea)
-
-    st.download_button(
-        "📥 Download Roadmap JSON",
-        data=json.dumps(plan, indent=2),
-        file_name="learning_path.json",
-        mime="application/json",
+    subject = st.text_input(
+        "What do you want to learn?",
+        "Python and Machine Learning"
     )
-else:
-    st.info("Enter a learning goal in the sidebar and click Generate Learning Path.")
 
-    st.markdown("""
-    ### How this demo works
+    days = st.slider(
+        "Learning Duration",
+        min_value=7,
+        max_value=60,
+        value=30
+    )
 
-    **User → Streamlit → MCP Client → MCP Server → Tools → Personalized Roadmap**
+    level = st.selectbox(
+        "Current Level",
+        [
+            "Beginner",
+            "Intermediate",
+            "Advanced"
+        ]
+    )
 
-    This starter project uses the official Python MCP SDK. The two demo tools are
-    `generate_learning_path` and `find_learning_resources`.
+    submitted = st.form_submit_button(
+        "🚀 Generate Learning Path"
+    )
 
-    The next integration stage can replace the resource tool with real YouTube,
-    Google Drive, and Notion connections.
-    """)
+
+if submitted:
+
+    try:
+
+        with st.spinner("🔌 Calling MCP tools..."):
+
+            plan = asyncio.run(
+                call_mcp(
+                    "generate_learning_path",
+                    {
+                        "subject": subject,
+                        "days": days,
+                        "level": level
+                    }
+                )
+            )
+
+            resources = asyncio.run(
+                call_mcp(
+                    "get_learning_resources",
+                    {
+                        "subject": subject
+                    }
+                )
+            )
+
+            project = asyncio.run(
+                call_mcp(
+                    "suggest_project",
+                    {
+                        "subject": subject,
+                        "level": level
+                    }
+                )
+            )
+
+
+        st.success(
+            "✅ Learning path generated successfully using MCP!"
+        )
+
+
+        st.subheader("🎯 Learning Goal")
+
+        st.write(plan["goal"])
+
+
+        st.subheader("📅 Day-by-Day Roadmap")
+
+        for item in plan["roadmap"]:
+
+            with st.expander(
+                f"Day {item['day']} — {item['topic']}"
+            ):
+
+                st.write(item["task"])
+
+
+        st.subheader("📚 Learning Resources")
+
+        for resource in resources:
+
+            st.markdown(
+                f"- [{resource['title']}]"
+                f"({resource['url']}) — "
+                f"{resource['purpose']}"
+            )
+
+
+        st.subheader("💡 Suggested Mini Project")
+
+        st.markdown(
+            f"### {project['title']}"
+        )
+
+        st.write(
+            project["description"]
+        )
+
+
+        st.subheader("🔌 MCP Tools Used")
+
+        st.code(
+            """
+generate_learning_path()
+get_learning_resources()
+suggest_project()
+"""
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            f"Something went wrong: {e}"
+        )
+
+        st.info(
+            "Please check that app.py, mcp_server.py "
+            "and requirements.txt are updated."
+        )
