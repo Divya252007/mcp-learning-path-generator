@@ -1,2 +1,2 @@
-streamlit>=1.40
-"mcp[cli]>=2.0,<3
+streamlit
+mcp==2.2.0
