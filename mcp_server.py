@@ -1,68 +1,93 @@
 from mcp.server import MCPServer
 
 mcp = MCPServer(
-    "Learning Path Generator",
-    instructions="Provides tools for creating personalized learning paths and finding learning resources."
+    "LearningPathServer",
+    instructions="MCP tools for generating personalized student learning paths.",
 )
 
+
 @mcp.tool()
-def generate_learning_path(topic: str, days: int, level: str) -> dict:
-    """Generate a structured learning roadmap for a topic."""
-    days = max(1, min(int(days), 60))
+def generate_learning_path(
+    subject: str,
+    days: int,
+    level: str
+) -> dict:
+    """Generate a structured learning roadmap."""
+
+    days = max(1, min(days, 60))
+
+    topics = [
+        "Foundations and Key Concepts",
+        "Core Terminology",
+        "Guided Examples",
+        "Hands-on Practice",
+        "Intermediate Concepts",
+        "Problem Solving",
+        "Practice Exercises",
+        "Review and Debugging",
+        "Applied Learning",
+        "Mini Project",
+    ]
 
     roadmap = []
+
     for day in range(1, days + 1):
-        if day <= max(1, days // 4):
-            phase = "Foundations"
-            concepts = ["Core terminology", "Basic syntax/concepts", "Small examples"]
-        elif day <= max(2, days // 2):
-            phase = "Core Skills"
-            concepts = ["Important concepts", "Hands-on exercises", "Debugging/problem solving"]
-        elif day <= max(3, (days * 3) // 4):
-            phase = "Applied Practice"
-            concepts = ["Intermediate techniques", "Real-world examples", "Mini project work"]
-        else:
-            phase = "Project & Review"
-            concepts = ["Revision", "Integration", "Final project"]
+        topic = topics[(day - 1) % len(topics)]
 
         roadmap.append({
             "day": day,
-            "topic": f"{phase}: {topic}",
-            "concepts": concepts,
-            "practice": f"Spend 30–60 minutes practicing {topic} at {level} level.",
-            "task": f"Complete one small exercise related to {topic}."
+            "topic": f"{subject}: {topic}",
+            "task": (
+                f"Study {topic.lower()} and complete "
+                f"one practical exercise at {level.lower()} level."
+            ),
         })
 
     return {
-        "goal": f"Build a {days}-day {level.lower()} learning path for {topic}.",
+        "goal": (
+            f"Build a {level.lower()}-level foundation "
+            f"in {subject}."
+        ),
         "roadmap": roadmap,
-        "project_ideas": [
-            f"Build a small {topic} practice project",
-            f"Create a portfolio project demonstrating {topic}",
-            f"Document what you learned and the results"
-        ]
     }
 
 
 @mcp.tool()
-def find_learning_resources(topic: str, level: str) -> dict:
-    """Return learning-resource links relevant to a topic."""
-    query = topic.replace(" ", "+")
+def get_learning_resources(subject: str) -> list[dict]:
+    """Return useful learning resources."""
+
+    return [
+        {
+            "title": "Python Official Tutorial",
+            "url": "https://docs.python.org/3/tutorial/",
+            "purpose": "Official Python learning material.",
+        },
+        {
+            "title": "Kaggle Learn",
+            "url": "https://www.kaggle.com/learn",
+            "purpose": "Hands-on courses and exercises.",
+        },
+        {
+            "title": "freeCodeCamp",
+            "url": "https://www.freecodecamp.org/learn/",
+            "purpose": "Interactive programming practice.",
+        },
+    ]
+
+
+@mcp.tool()
+def suggest_project(
+    subject: str,
+    level: str
+) -> dict:
+    """Suggest a practical student project."""
+
     return {
-        "resources": [
-            {
-                "title": f"YouTube search: {topic}",
-                "url": f"https://www.youtube.com/results?search_query={query}+{level.lower()}",
-                "type": "Video search"
-            },
-            {
-                "title": f"Google search: {topic} documentation",
-                "url": f"https://www.google.com/search?q={query}+documentation",
-                "type": "Documentation search"
-            }
-        ]
+        "title": f"{subject} Student Mini Project",
+        "description": (
+            f"Build a small practical application using "
+            f"the main concepts of {subject}. "
+            f"Start at {level.lower()} level and document "
+            "the problem, approach, implementation and result."
+        ),
     }
-
-
-if __name__ == "__main__":
-    mcp.run()
